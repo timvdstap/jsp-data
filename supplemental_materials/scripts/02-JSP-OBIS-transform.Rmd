@@ -23,22 +23,25 @@ library(worrms)
 library(obistools)
 
 # Reads data from the most recent official version of the Hakai Juvenile Salmon Program time series
-survey_data <- read_csv("https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/tidy_data/survey_data.csv") 
+#TODO: Survey data needs updating of 2021 and 2022 data. 
+survey_data <- read_csv("https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/supplemental_materials/tidy_data/survey_data.csv") 
 
-seine_data <- read_csv("https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/tidy_data/seine_data.csv") 
+seine_data <- read_csv("https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/supplemental_materials/tidy_data/seine_data.csv") 
 
-sites <- read_csv("https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/tidy_data/sites.csv")
+sites <- read_csv("https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/supplemental_materials/tidy_data/sites.csv")
 
 survey_seines <- right_join(survey_data, seine_data, by = "survey_id") # removes survey events where a seine wasn't set
 
-fish_lab_data <- read_csv("https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/tidy_data/fish_lab_data.csv", guess_max = 8000)
+fish_lab_data <- read_csv("https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/supplemental_materials/tidy_data/fish_lab_data.csv", guess_max = 8000)
 
-fish_field_data <- read_csv("https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/tidy_data/fish_field_data.csv", guess_max = 16000)
+fish_field_data <- read_csv("https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/supplemental_materials/tidy_data/fish_field_data.csv", guess_max = 16000)
+
+ysi_data <- read_csv("https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/supplemental_materials/tidy_data/ysi.csv")
 
 
-bycatch <- read_csv('https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/tidy_data/bycatch_mort.csv')
+bycatch <- read_csv('https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/supplemental_materials/tidy_data/bycatch_mort.csv')
 
-sealice <- read_csv("https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/tidy_data/combined_motile_lice.csv")
+sealice <- read_csv("https://raw.githubusercontent.com/HakaiInstitute/jsp-data/master/supplemental_materials/tidy_data/combined_motile_lice.csv")
 
 fish_data <- full_join(fish_lab_data, fish_field_data) %>% 
   left_join(sealice)
@@ -73,7 +76,7 @@ My process for conversion was to make a new table called `event` and map the sta
 
 ```{r event}
 
-#TODO: Include abiotic measurements (YSI temp and salinity from 0 and 1 m) to hang off eventID in the eMoF table
+#TODO: Should Krystal & Tim be included in the bibliographic citation..?
 
 event <- tibble(datasetName = "Hakai Institute Juvenile Salmon Program",
                 eventID = survey_seines$seine_id,
@@ -182,7 +185,7 @@ by_worms_names <- wm_records_names(unique_bycatch) %>%
 
 bycatch_occurrence <- bycatch %>% 
   select(eventID = seine_id, occurrenceID, scientificName, `Life stage` = bm_ageclass) %>% 
-  filter(scientificName != "unknown")
+  filter(scientificName != c("unknown", "Unknown"))
 
 bycatch_occurrence$`Life stage`[bycatch_occurrence$`Life stage` == "J"] <- "juvenile"
 bycatch_occurrence$`Life stage`[bycatch_occurrence$`Life stage` == "A"] <- "adult"
@@ -197,7 +200,7 @@ occurrence <- left_join(occurrence, combined_worms_names) %>%
     mutate(basisOfRecord = "HumanObservation",
         occurrenceStatus = "present")
 
-write_csv(occurrence, here::here("OBIS_data", "occurrence.csv"))
+write_csv(occurrence, here::here("supplemental_materials", "OBIS_data", "occurrence.csv"))
 
 # This removes events that didn't result in any occurrences
 event <- dplyr::semi_join(event, occurrence, by = 'eventID') %>% 
@@ -211,7 +214,7 @@ event <- dplyr::left_join(event, simple_sites, by = c("locationID" = "site_id"))
          decimalLongitude = coalesce(decimalLongitude, ocgy_std_lon)) %>% 
   select(-c(ocgy_std_lat, ocgy_std_lon))
 
-write_csv(event, here::here("OBIS_data", "event.csv"))
+write_csv(event, here::here("supplemental_materials", "OBIS_data", "event.csv"))
 ```
 
 
@@ -222,13 +225,11 @@ Here I convert length, and weight measurements that relate to an event and an oc
 
 ```{r measurementOrFact}
 
-mof_types <- read_csv(here("OBIS_data", "mof_type_units_id.csv"))
+mof_types <- read_csv(here("supplemental_materials", "OBIS_data", "mof_type_units_id.csv"))
 
 fish_data$weight <- coalesce(fish_data$weight, fish_data$weight_field)
 fish_data$fork_length <- coalesce(fish_data$fork_length, fish_data$fork_length_field)
 fish_data$`Life stage` <- "juvenile"
-
-
 
 measurementOrFact <- fish_data %>%
   mutate(occurrenceID = paste0("hakai-jsp-", ufn)) %>% 
@@ -243,8 +244,12 @@ measurementOrFact <- fish_data %>%
   mutate(measurementValueID = case_when(measurementValue == "juvenile" ~ "http://vocab.nerc.ac.uk/collection/S11/current/S1127/"),
          measurementID = paste(eventID, measurementType, occurrenceID, sep = "-"))
 
+#TODO: Include abiotic measurements (YSI temp and salinity from 0 and 1 m) to hang off eventID in the eMoF table
+#TODO: Determine which YSI reading is from fish capture location, and which from OCGY site - I think we can determine this from the 2019 - 2022 data (event_type or ocgy_lco = fish_capture).
+ysi_data <- ysi_data %>%
+  
 
-write_csv(measurementOrFact, here::here("Obis_data", "extendedMeasurementOrFact.csv"))
+write_csv(measurementOrFact, here::here("supplemental_materials", "OBIS_data", "extendedMeasurementOrFact.csv"))
 ```
 
 ```{r QC}

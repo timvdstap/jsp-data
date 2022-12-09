@@ -153,7 +153,7 @@ The JSP database is broken down into several tables that relate to each other vi
 # Create relational data model list object
 salmon_dm_no_keys <- dm(survey_data, seine_data, fish_field_data, fish_lab_data, 
                         sites, bycatch_mort, site_activity, combined_motile_lice,
-                        ysi, ctd_all, dna_samples, stock_id,
+                        ysi, qu39_ctd, dna_samples, stock_id,
                         zoop_tax_samples, zoop_tows, stomach_samples, salmon_diets_coarse,
                         sealice_id_samples, carcasses_samples, isotope_samples,
                         rna_dna_samples, rna_pathogen_samples, otolith_samples,
